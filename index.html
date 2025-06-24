@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Photo Editor App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- TensorFlow.js (optional, for real AI Enhance) -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #ff0080 0%, #7928ca 100%);
+      min-height: 100vh;
+      color: #fff;
+      box-sizing: border-box;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      justify-content: center;
+      align-items: center;
+      padding-bottom: 80px; /* For nav bar */
+    }
+    .app-header {
+      width: 100vw;
+      text-align: center;
+      font-size: 1.2rem;
+      font-weight: bold;
+      letter-spacing: 1px;
+      background: rgba(44,44,44,0.95);
+      padding: 1rem 0 0.7rem 0;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px #0002;
+    }
+    .center-panel {
+      background: #18161c;
+      border-radius: 20px;
+      box-shadow: 0 8px 32px #0007;
+      padding: 2.2rem 2rem 2rem 2rem;
+      min-width: 280px;
+      max-width: 95vw;
+      margin-top: 80px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      animation: fadeInPanel 1.1s cubic-bezier(.68,-0.55,.27,1.55);
+    }
+    @keyframes fadeInPanel {
+      0% { opacity: 0; transform: scale(0.96) translateY(30px);}
+      80% { transform: scale(1.03) translateY(-5px);}
+      100% { opacity: 1; transform: scale(1) translateY(0);}
+    }
+    .center-panel h2 {
+      margin: 0 0 0.6em 0;
+      font-size: 1.5em;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+    .center-panel p {
+      margin: 0 0 1.5em 0;
+      font-size: 1em;
+      color: #eee;
+      letter-spacing: 0.2px;
+      text-align: center;
+    }
+    .home-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      width: 100%;
+      align-items: center;
+    }
+    .cool-btn {
+      width: 180px;
+      background: linear-gradient(90deg,#ff0080 0%,#7928ca 100%);
+      color: #fff;
+      border: none;
+      border-radius: 2rem;
+      padding: 0.95rem 1rem;
+      font-size: 1.1rem;
+      font-weight: bold;
+      box-shadow: 0 4px 16px #ff008044;
+      cursor: pointer;
+      transition: transform 0.16s, box-shadow 0.16s, background 0.3s;
+      outline: none;
+      letter-spacing: 1px;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .cool-btn:hover, .cool-btn:focus {
+      background: linear-gradient(90deg,#ff5ebc 0%,#7f5fff 100%);
+      transform: scale(1.07);
+      box-shadow: 0 6px 24px #ff008066;
+    }
+    .cool-btn:active {
+      transform: scale(0.97);
+      box-shadow: 0 2px 8px #0004;
+    }
+    /* Bottom navigation bar */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0; left: 0;
+      width: 100vw;
+      background: rgba(44,44,44,0.97);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      height: 60px;
+      z-index: 200;
+      border-top: 1px solid #444;
+      box-shadow: 0 -2px 16px #0002;
+    }
+    .bottom-nav button {
+      flex: 1;
+      background: none;
+      border: none;
+      color: #eee;
+      font-size: 1.1rem;
+      padding: 0.7rem 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.2rem;
+      cursor: pointer;
+      transition: color 0.2s, transform 0.18s;
+      outline: none;
+    }
+    .bottom-nav button.active { color: #ff0080; font-weight: bold; }
+    .bottom-nav button:hover { color: #ff5ebc; transform: scale(1.12);}
+    .nav-icon { font-size: 1.5rem; }
+    /* Views */
+    .view { display: none; }
+    .view.active { display: block; }
+    /* Editor/Draw/AI panels */
+    .editor-panel, .draw-panel, .ai-panel {
+      background: #18161c;
+      border-radius: 20px;
+      box-shadow: 0 8px 32px #0007;
+      padding: 1.2rem 1.2rem 1.2rem 1.2rem;
+      min-width: 280px;
+      max-width: 98vw;
+      margin-top: 80px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      animation: fadeInPanel 0.7s cubic-bezier(.68,-0.55,.27,1.55);
+    }
+    .toolbar, .drawbar {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .toolbar button, .drawbar button, .toolbar label, .toolbar select, .toolbar input[type="color"] {
+      background: linear-gradient(90deg,#ff0080 0%,#7928ca 100%);
+      color: #fff;
+      border: none;
+      border-radius: 1.2rem;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      box-shadow: 0 2px 8px #0002;
+      margin: 0.1rem 0.2rem;
+      transition: background 0.3s, transform 0.18s, box-shadow 0.3s;
+      outline: none;
+      position: relative;
+      z-index: 1;
+    }
+    .toolbar button.active, .drawbar button.active {
+      background: linear-gradient(90deg,#7928ca 0%,#ff0080 100%);
+      color: #fff;
+      box-shadow: 0 4px 16px #ff008044;
+      transform: scale(1.08);
+    }
+    .toolbar input[type="color"], .drawbar input[type="color"] {
+      padding: 0.2rem; width: 2.2rem; height: 2.2rem;
+      border-radius: 50%; border: 2px solid #ff0080;
+      background: #fff;
+      box-shadow: 0 2px 8px #0002;
+      cursor: pointer;
+      margin-left: 0.5rem;
+    }
+    .toolbar select, .drawbar select {
+      background: #222;
+      color: #fff;
+      border: 1px solid #7928ca;
+      border-radius: 4px;
+      padding: 0.3rem 0.7rem;
+      font-weight: 600;
+      font-size: 1rem;
+      margin-left: 0.5rem;
+    }
+    canvas {
+      display: block; margin: 1rem auto; background: #fff;
+      border-radius: 8px; box-shadow: 0 2px 16px #0004; cursor: crosshair;
+      touch-action: none;
+      max-width: 95vw;
+    }
+    #spinner { display: none; margin: 1rem auto; border: 6px solid #333; border-top: 6px solid #ff0080; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    @media (max-width: 600px) {
+      .center-panel, .editor-panel, .draw-panel, .ai-panel { padding: 1.1rem 0.4rem; min-width: 95vw; }
+      .app-header { font-size: 1.05rem; }
+      .cool-btn { width: 95vw; max-width: 300px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-header">AI Photo Editor</div>
+
+  <!-- Home View -->
+  <div id="homeView" class="view active">
+    <div class="center-panel">
+      <h2>Welcome!</h2>
+      <p>What would you like to do?</p>
+      <div class="home-buttons">
+        <button class="cool-btn" onclick="showView('editView')">Edit Photo</button>
+        <button class="cool-btn" onclick="showView('drawView')">Manual Draw</button>
+        <button class="cool-btn" onclick="showView('aiView')">AI Enhance</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Photo View -->
+  <div id="editView" class="view">
+    <div class="editor-panel">
+      <div class="toolbar">
+        <label for="uploadEdit">Upload</label>
+        <input type="file" id="uploadEdit" accept="image/*" style="display:none">
+        <button onclick="resetEdit()">Reset</button>
+        <button onclick="downloadImage('edit')">Download</button>
+        <button onclick="showView('homeView')">Back</button>
+      </div>
+      <canvas id="editCanvas" width="350" height="350"></canvas>
+    </div>
+  </div>
+
+  <!-- Manual Draw View -->
+  <div id="drawView" class="view">
+    <div class="draw-panel">
+      <div class="drawbar">
+        <button onclick="setDrawTool('brush')" id="brushBtn">Brush</button>
+        <button onclick="setDrawTool('eraser')" id="eraserBtn">Eraser</button>
+        <input type="color" id="drawColor" value="#ff0080" title="Brush Color">
+        <select id="drawSize">
+          <option value="4">4px</option>
+          <option value="8" selected>8px</option>
+          <option value="16">16px</option>
+          <option value="32">32px</option>
+        </select>
+        <button onclick="downloadImage('draw')">Download</button>
+        <button onclick="showView('homeView')">Back</button>
+      </div>
+      <canvas id="drawCanvas" width="350" height="350"></canvas>
+    </div>
+  </div>
+
+  <!-- AI Enhance View -->
+  <div id="aiView" class="view">
+    <div class="ai-panel">
+      <div class="toolbar">
+        <label for="uploadAI">Upload</label>
+        <input type="file" id="uploadAI" accept="image/*" style="display:none">
+        <button onclick="applyAIEnhance()" id="aiEnhanceBtn">AI Enhance</button>
+        <button onclick="downloadImage('ai')">Download</button>
+        <button onclick="showView('homeView')">Back</button>
+      </div>
+      <div id="spinner"></div>
+      <canvas id="aiCanvas" width="350" height="350"></canvas>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation -->
+  <div class="bottom-nav">
+    <button id="navHome" class="active" onclick="showView('homeView')">
+      <span class="nav-icon">🏠</span>Home
+    </button>
+    <button id="navEdit" onclick="showView('editView')">
+      <span class="nav-icon">🖼️</span>Edit
+    </button>
+    <button id="navDraw" onclick="showView('drawView')">
+      <span class="nav-icon">✏️</span>Draw
+    </button>
+    <button id="navAI" onclick="showView('aiView')">
+      <span class="nav-icon">🤖</span>AI
+    </button>
+  </div>
+
+  <script>
+    // View switching
+    function showView(viewId) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.getElementById(viewId).classList.add('active');
+      document.querySelectorAll('.bottom-nav button').forEach(b => b.classList.remove('active'));
+      if (viewId === 'homeView') document.getElementById('navHome').classList.add('active');
+      if (viewId === 'editView') document.getElementById('navEdit').classList.add('active');
+      if (viewId === 'drawView') document.getElementById('navDraw').classList.add('active');
+      if (viewId === 'aiView') document.getElementById('navAI').classList.add('active');
+    }
+
+    // --- Edit Photo ---
+    const editCanvas = document.getElementById('editCanvas');
+    const editCtx = editCanvas.getContext('2d');
+    let editImg = new Image();
+    let editOriginal = null;
+    document.querySelector('label[for="uploadEdit"]').onclick = () => document.getElementById('uploadEdit').click();
+    document.getElementById('uploadEdit').onchange = function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        editImg.onload = function() {
+          editCanvas.width = editImg.width;
+          editCanvas.height = editImg.height;
+          editCtx.drawImage(editImg, 0, 0);
+          editOriginal = editCtx.getImageData(0, 0, editCanvas.width, editCanvas.height);
+        };
+        editImg.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    };
+    function resetEdit() {
+      if (editOriginal) editCtx.putImageData(editOriginal, 0, 0);
+    }
+
+    // --- Manual Draw ---
+    const drawCanvas = document.getElementById('drawCanvas');
+    const drawCtx = drawCanvas.getContext('2d');
+    let drawTool = 'brush';
+    let drawing = false;
+    let lastX = 0, lastY = 0;
+    let drawColor = document.getElementById('drawColor').value;
+    let drawSize = parseInt(document.getElementById('drawSize').value);
+
+    function setDrawTool(t) {
+      drawTool = t;
+      document.getElementById('brushBtn').classList.toggle('active', t === 'brush');
+      document.getElementById('eraserBtn').classList.toggle('active', t === 'eraser');
+    }
+    setDrawTool('brush');
+    document.getElementById('drawColor').oninput = e => drawColor = e.target.value;
+    document.getElementById('drawSize').onchange = e => drawSize = parseInt(e.target.value);
+
+    drawCanvas.onpointerdown = function(e) {
+      drawing = true;
+      const rect = drawCanvas.getBoundingClientRect();
+      lastX = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+      lastY = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+    };
+    drawCanvas.onpointermove = function(e) {
+      if (!drawing) return;
+      const rect = drawCanvas.getBoundingClientRect();
+      const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+      const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+      drawCtx.lineCap = 'round';
+      drawCtx.lineJoin = 'round';
+      drawCtx.lineWidth = drawSize;
+      drawCtx.globalCompositeOperation = (drawTool === 'eraser') ? 'destination-out' : 'source-over';
+      drawCtx.strokeStyle = (drawTool === 'eraser') ? '#fff' : drawColor;
+      drawCtx.beginPath();
+      drawCtx.moveTo(lastX, lastY);
+      drawCtx.lineTo(x, y);
+      drawCtx.stroke();
+      lastX = x; lastY = y;
+    };
+    drawCanvas.onpointerup = drawCanvas.onpointerleave = function(e) {
+      drawing = false;
+      drawCtx.globalCompositeOperation = 'source-over';
+    };
+
+    // --- AI Enhance (placeholder, ready for TensorFlow.js model) ---
+    const aiCanvas = document.getElementById('aiCanvas');
+    const aiCtx = aiCanvas.getContext('2d');
+    let aiImg = new Image();
+
+    document.querySelector('label[for="uploadAI"]').onclick = () => document.getElementById('uploadAI').click();
+    document.getElementById('uploadAI').onchange = function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        aiImg.onload = function() {
+          aiCanvas.width = aiImg.width;
+          aiCanvas.height = aiImg.height;
+          aiCtx.drawImage(aiImg, 0, 0);
+        };
+        aiImg.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    };
+
+    function showSpinner(show) {
+      document.getElementById('spinner').style.display = show ? 'block' : 'none';
+      document.getElementById('aiEnhanceBtn').disabled = show;
+    }
+
+    async function applyAIEnhance() {
+      showSpinner(true);
+      // --- For demo: just apply a filter. Replace with TensorFlow.js model for real AI!
+      setTimeout(() => {
+        aiCtx.filter = 'brightness(1.1) contrast(1.2) saturate(1.2)';
+        aiCtx.drawImage(aiCanvas, 0, 0);
+        aiCtx.filter = 'none';
+        showSpinner(false);
+      }, 1000);
+      // --- For real AI, see previous code samples for TensorFlow.js ESRGAN integration
+    }
+
+    // --- Download for all canvases
+    function downloadImage(which) {
+      let canvas;
+      if (which === 'edit') canvas = editCanvas;
+      else if (which === 'draw') canvas = drawCanvas;
+      else if (which === 'ai') canvas = aiCanvas;
+      else return;
+      const link = document.createElement('a');
+      link.download = 'photo.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    }
+  </script>
+</body>
+</html>
